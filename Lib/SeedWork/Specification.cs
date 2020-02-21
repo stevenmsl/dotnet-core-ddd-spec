@@ -4,6 +4,7 @@ using System.Linq.Expressions;
 
 namespace Lib
 {
+    #region Helper classes not exposed to the clients  
     internal sealed class IdentitySpecification<T> : Specification<T>
     {
         public override Expression<Func<T, bool>> ToExpression()
@@ -23,10 +24,18 @@ namespace Lib
 
         public override Expression<Func<T, bool>> ToExpression()
         {
-            throw new NotImplementedException();
+            var left = _left.ToExpression();
+            var right = _right.ToExpression();
+
+            var invoked = Expression.Invoke(right, left.Parameters);
+
+            return
+                (Expression < Func<T, bool> >) Expression.Lambda                    
+                    (Expression.AndAlso(left.Body, invoked), left.Parameters);                                
         }
 
-    } 
+    }
+    #endregion
 
     // this is the only class type exposed to the client code
     // all other class types are internal
@@ -39,14 +48,16 @@ namespace Lib
         {
             // Compile will return you a delegate that represents 
             // the lambda expression
-            return ToExpression().Compile()(entity);
+            var func = ToExpression().Compile();
+
+            return func(entity);
         }
 
         public Specification<T> And(Specification<T> spec)
         {
             if (this == null) return spec;
             if (spec == All) return this;
-            throw new NotImplementedException();
+            return new AndSpecification<T>(this, spec);
         }
 
     }
